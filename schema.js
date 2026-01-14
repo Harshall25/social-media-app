@@ -13,7 +13,7 @@ const userModel = mongoose.model('userModel', userSchema);
 const postSchema = new Schema({
     title : String,
     content : String,
-    author : {
+    owner : {
         type:mongoose.Schema.Types.ObjectId,
         ref : "userModel"
     },
