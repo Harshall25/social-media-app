@@ -1,89 +1,367 @@
-const {userModel} = require('../schema');
-const {postModel} = require('../schema');
+const { postModel, commentModel, likeModel } = require('../schema');
+const { z } = require('zod');
 
-//create post
-export const createPost = async (req,res) =>{
-    const {content,tags , imageUrl } = req.body;
+// Zod validation schemas
+const createPostSchema = z.object({
+    title: z.string().min(1, "Title is required").optional(),
+    content: z.string().min(1, "Content is required"),
+    tags: z.array(z.string()).optional(),
+    imageUrl: z.string().url("Invalid URL format").optional()
+});
 
-    await postModel.create({
-        content : content,
-        tage : tags,
-        imageUrl : imageUrl
-    })
+const updatePostSchema = z.object({
+    title: z.string().min(1).optional(),
+    content: z.string().min(1).optional(),
+    tags: z.array(z.string()).optional(),
+    imageUrl: z.string().url("Invalid URL format").optional()
+});
 
-    res.json({
-        message : "post added"
-    })
-}
+const commentSchema = z.object({
+    content: z.string().min(1, "Comment content is required")
+});
 
-//get posts / render posts public
-export const renderPost = async (req,res) =>{
-    const posts = await postModel.find();
-    if(!posts){
-        return res.json({
-            error : "no posts by you"
-        })
+// Create post (protected)
+const createPost = async (req, res) => {
+    try {
+        // Validate input
+        const validatedData = createPostSchema.parse(req.body);
+        const { title, content, tags, imageUrl } = validatedData;
+
+        const post = await postModel.create({
+            title: title,
+            content: content,
+            tags: tags || [],
+            imageUrl: imageUrl,
+            author: req.userId
+        });
+
+        res.status(201).json({
+            message: "Post created successfully",
+            post: post
+        });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Validation failed",
+                details: error.errors
+            });
+        }
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
     }
+};
 
-    res.json({
-        posts
-    })
-}
+// Get all posts (public)
+const renderPost = async (req, res) => {
+    try {
+        const posts = await postModel.find()
+            .populate('author', 'name email')
+            .sort({ createdAt: -1 });
 
-//get post by id 
-export const renderbyId = async (req,res) =>{
-    const postId = req.params.id;
-    const posts  = await postModel.findById(postId);
-
-    res.json({
-        posts
-    })
-}
-
-//update post
-export const updatePost = async (req,res) =>{
-    const postId = req.body.id;
-    const userId = req.userId;
-
-    //get post 
-    const post = await findById(postId);
-    if(!post){
-        return res.json({
-            error : 'post is not available'
-        })
+        res.status(200).json({
+            success: true,
+            count: posts.length,
+            posts: posts
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
     }
+};
 
-    //check if post owner is same as userid
-    if(post.owner.toString() !== userId){
-        return res.json({
-            error: 'only owner can update or modify the post'
-        })
+// Get post by id (public)
+const renderbyId = async (req, res) => {
+    try {
+        const postId = req.params.id;
+
+        const post = await postModel.findById(postId)
+            .populate('author', 'name email');
+
+        if (!post) {
+            return res.status(404).json({
+                error: "Post not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            post: post
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
     }
+};
 
-    //get body for modifying existing post
-    const {title,content , tags, imageUrl} = req.body;
+// Update post (protected - only author can update)
+const updatePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.userId;
 
-    if(title) post.title = title;
-    if(content) post.content = content;
-    if(tags) post.tags = tags;
-    if(imageUrl) post.imageUrl = imageUrl;
+        // Validate input
+        const validatedData = updatePostSchema.parse(req.body);
+        const { title, content, tags, imageUrl } = validatedData;
 
-    await post.save();
-    
-    res.json({
-        message : 'post updated',
-        post : post
-    })
-}
+        // Find the post
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({
+                error: 'Post not found'
+            });
+        }
 
-//delete post
-export const deletePost = async (req,res)=>{
-    const postid = req.params.body;
-    await postModel.findByIdAndDelete(id);
-    res.json({
-        message : 'post deleted successfully'
-    })
-}
+        // Check ownership - only author can update
+        if (post.author.toString() !== userId) {
+            return res.status(403).json({
+                error: 'Access denied. Only the post author can update this post'
+            });
+        }
+
+        // Update fields
+        if (title !== undefined) post.title = title;
+        if (content !== undefined) post.content = content;
+        if (tags !== undefined) post.tags = tags;
+        if (imageUrl !== undefined) post.imageUrl = imageUrl;
+        post.updatedAt = Date.now();
+
+        await post.save();
+
+        res.status(200).json({
+            message: 'Post updated successfully',
+            post: post
+        });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Validation failed",
+                details: error.errors
+            });
+        }
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
+// Delete post (protected - only author can delete)
+const deletePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.userId;
+
+        // Find the post
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({
+                error: 'Post not found'
+            });
+        }
+
+        // Check ownership - only author can delete
+        if (post.author.toString() !== userId) {
+            return res.status(403).json({
+                error: 'Access denied. Only the post author can delete this post'
+            });
+        }
+
+        await postModel.findByIdAndDelete(postId);
+
+        // Also delete associated comments and likes
+        await commentModel.deleteMany({ post: postId });
+        await likeModel.deleteMany({ post: postId });
+
+        res.status(200).json({
+            message: 'Post deleted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
+// Add comment (protected)
+const addComment = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.userId;
+
+        // Validate input
+        const validatedData = commentSchema.parse(req.body);
+        const { content } = validatedData;
+
+        // Check if post exists
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({
+                error: 'Post not found'
+            });
+        }
+
+        const comment = await commentModel.create({
+            content: content,
+            post: postId,
+            user: userId
+        });
+
+        const populatedComment = await commentModel.findById(comment._id)
+            .populate('user', 'name email');
+
+        res.status(201).json({
+            message: 'Comment added successfully',
+            comment: populatedComment
+        });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Validation failed",
+                details: error.errors
+            });
+        }
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
+// Get comments for a post (public)
+const getComments = async (req, res) => {
+    try {
+        const postId = req.params.id;
+
+        // Check if post exists
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({
+                error: 'Post not found'
+            });
+        }
+
+        const comments = await commentModel.find({ post: postId })
+            .populate('user', 'name email')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: comments.length,
+            comments: comments
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
+// Like a post (protected)
+const likePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.userId;
+
+        // Check if post exists
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({
+                error: 'Post not found'
+            });
+        }
+
+        // Check if already liked
+        const existingLike = await likeModel.findOne({ post: postId, user: userId });
+        if (existingLike) {
+            return res.status(400).json({
+                error: 'You have already liked this post'
+            });
+        }
+
+        // Create like
+        await likeModel.create({
+            post: postId,
+            user: userId
+        });
+
+        // Update likes count
+        const likesCount = await likeModel.countDocuments({ post: postId });
+        post.likesCount = likesCount;
+        await post.save();
+
+        res.status(200).json({
+            message: 'Post liked successfully',
+            likesCount: likesCount
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
+// Unlike a post (protected)
+const unlikePost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.userId;
+
+        // Check if post exists
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({
+                error: 'Post not found'
+            });
+        }
+
+        // Check if like exists
+        const existingLike = await likeModel.findOne({ post: postId, user: userId });
+        if (!existingLike) {
+            return res.status(400).json({
+                error: 'You have not liked this post'
+            });
+        }
+
+        // Remove like
+        await likeModel.deleteOne({ post: postId, user: userId });
+
+        // Update likes count
+        const likesCount = await likeModel.countDocuments({ post: postId });
+        post.likesCount = likesCount;
+        await post.save();
+
+        res.status(200).json({
+            message: 'Post unliked successfully',
+            likesCount: likesCount
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
+module.exports = {
+    createPost,
+    renderPost,
+    renderbyId,
+    updatePost,
+    deletePost,
+    addComment,
+    getComments,
+    likePost,
+    unlikePost
+};
 
 
 

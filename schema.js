@@ -4,8 +4,8 @@ const Schema = mongoose.Schema;
 const userSchema = new Schema({
     name : String,
     email : {type : String , unique : true},
-    password : string,
-    createdAt : {type: Date  , default :Date.now()}
+    password : String,
+    createdAt : {type: Date  , default : Date.now}
 });
 
 const userModel = mongoose.model('userModel', userSchema);
@@ -13,18 +13,19 @@ const userModel = mongoose.model('userModel', userSchema);
 const postSchema = new Schema({
     title : String,
     content : String,
-    owner : {
+    author : {
         type:mongoose.Schema.Types.ObjectId,
-        ref : "userModel"
+        ref : "userModel",
+        required: true
     },
     tags : {
         type : [String],
         default : [],
     },
     imageUrl : String,
-    likeCount : {type : Number ,default : 0},
-    createdAt : {type: Date  , default :Date.now()},
-    updatedAt : {type: Date  , default :Date.now()}
+    likesCount : {type : Number ,default : 0},
+    createdAt : {type: Date  , default : Date.now},
+    updatedAt : {type: Date  , default : Date.now}
 });
 
 const postModel = mongoose.model('postModel',postSchema);
@@ -32,30 +33,36 @@ const postModel = mongoose.model('postModel',postSchema);
 const commentSchema = new Schema({
     content : String,
     post : {
-        type : mongoose.Schema.Types.ObjectId,
-        ref : 'postModel'
+        type : mongoose.S,
+        required: true
     },
     user : {
         type : mongoose.Schema.Types.ObjectId,
-        ref : 'userModel'
+        ref : 'userModel',
+        required: true
     },
-    createdAt : {type: Date  , default :Date.now()}
+    createdAt : {type: Date  , default : Date.now}
 })
 
-const commentModel = mongoose.model('commentmModel', commentSchema);
+const commentModel = mongoose.model('commentModel', commentSchema);
 
 
 const likeSchema = new Schema ({
     post : {
         type : mongoose.Schema.Types.ObjectId,
-        ref : 'postModel'
+        ref : 'postModel',
+        required: true
     },
     user : {
         type : mongoose.Schema.Types.ObjectId,
-        ref : 'userModel'
+        ref : 'userModel',
+        required: true
     },
-    createdAt : {type: Date  , default :Date.now()}
+    createdAt : {type: Date  , default : Date.now}
 })
+
+// Create a compound index to ensure a user can like a post only once
+likeSchema.index({ post: 1, user: 1 }, { unique: true });
 
 const likeModel = mongoose.model('likeModel',likeSchema);
 
