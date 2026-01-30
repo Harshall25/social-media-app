@@ -2,24 +2,18 @@ const { postModel, commentModel, likeModel } = require('../schema');
 const { z } = require('zod');
 
 // Zod validation schemas
-const mediaSchema = z.object({
-    type: z.enum(['image', 'video'], "Type must be 'image' or 'video'"),
-    url: z.string().url("Invalid URL format"),
-    publicId: z.string().min(1, "Public ID is required")
-});
-
 const createPostSchema = z.object({
     title: z.string().min(1, "Title is required").optional(),
     content: z.string().min(1, "Content is required"),
     tags: z.array(z.string()).optional(),
-    media: z.array(mediaSchema).optional() // Array of media objects for Cloudinary uploads
+    imageUrl: z.string().url("Invalid URL format").optional()
 });
 
 const updatePostSchema = z.object({
     title: z.string().min(1).optional(),
     content: z.string().min(1).optional(),
     tags: z.array(z.string()).optional(),
-    media: z.array(mediaSchema).optional() // Updated media array
+    imageUrl: z.string().url("Invalid URL format").optional()
 });
 
 const commentSchema = z.object({
@@ -31,13 +25,14 @@ const createPost = async (req, res) => {
     try {
         // Validate input
         const validatedData = createPostSchema.parse(req.body);
-        const { title, content, tags, media } = validatedData;
+        const { title, content, tags, imageUrl } = validatedData;
 
+        // Example: After uploading to R2, use the returned URL
         const post = await postModel.create({
             title: title,
             content: content,
             tags: tags || [],
-            media: media || [], // Array of media objects from Cloudinary
+            imageUrl: r2PublicUrl, // URL returned from R2 upload
             author: req.userId
         });
 
@@ -59,16 +54,66 @@ const createPost = async (req, res) => {
     }
 };
 
-// Get all posts (public)
+// Get all posts (public) with filtering and pagination
 const renderPost = async (req, res) => {
     try {
-        const posts = await postModel.find()
+        // Extract query parameters for filtering
+        const { 
+            author, 
+            tags, 
+            search, 
+            limit = 20, 
+            skip = 0, 
+            sortBy = 'createdAt', 
+            sortOrder = 'desc' 
+        } = req.query;
+
+        // Build filter object
+        const filter = {};
+        
+        // Filter by author
+        if (author) {
+            filter.author = author;
+        }
+        
+        // Filter by tags (case-insensitive)
+        if (tags) {
+            const tagArray = Array.isArray(tags) ? tags : tags.split(',');
+            filter.tags = { $in: tagArray.map(tag => new RegExp(tag.trim(), 'i')) };
+        }
+        
+        // Search in title and content (case-insensitive)
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { content: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Build sort object
+        const sortObj = {};
+        sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+        // Execute query with filtering, sorting, and pagination
+        const posts = await postModel.find(filter)
             .populate('author', 'name email')
-            .sort({ createdAt: -1 });
+            .sort(sortObj)
+            .limit(parseInt(limit))
+            .skip(parseInt(skip));
+
+        // Get total count for pagination
+        const totalPosts = await postModel.countDocuments(filter);
 
         res.status(200).json({
             success: true,
             count: posts.length,
+            total: totalPosts,
+            hasMore: parseInt(skip) + parseInt(limit) < totalPosts,
+            pagination: {
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                page: Math.floor(parseInt(skip) / parseInt(limit)) + 1
+            },
             posts: posts
         });
     } catch (error) {
@@ -113,7 +158,7 @@ const updatePost = async (req, res) => {
 
         // Validate input
         const validatedData = updatePostSchema.parse(req.body);
-        const { title, content, tags, media } = validatedData;
+        const { title, content, tags, imageUrl } = validatedData;
 
         // Find the post
         const post = await postModel.findById(postId);
@@ -134,7 +179,7 @@ const updatePost = async (req, res) => {
         if (title !== undefined) post.title = title;
         if (content !== undefined) post.content = content;
         if (tags !== undefined) post.tags = tags;
-        if (media !== undefined) post.media = media; // Update media array
+        if (imageUrl !== undefined) post.imageUrl = imageUrl;
         post.updatedAt = Date.now();
 
         await post.save();

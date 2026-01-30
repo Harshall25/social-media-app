@@ -1,6 +1,6 @@
 const express = require('express');
-const Router = express.Router();
-const postRouter = Router;
+const postRouter = express.Router();
+const { postLimiter, socialLimiter } = require('../middlewares/rateLimiter');
 const { userAuth } = require('../middlewares/userAuth');
 
 const {
@@ -16,7 +16,7 @@ const {
 } = require('../controllers/postController');
 
 // Post routes
-postRouter.post('/create', userAuth, createPost);
+postRouter.post('/create', postLimiter, userAuth, createPost);
 postRouter.get('/', renderPost);
 postRouter.get('/:id', renderbyId);
 postRouter.patch('/:id', userAuth, updatePost);
@@ -27,8 +27,8 @@ postRouter.post('/:id/comments', userAuth, addComment);
 postRouter.get('/:id/comments', getComments);
 
 // Like routes
-postRouter.post('/:id/like', userAuth, likePost);
-postRouter.delete('/:id/like', userAuth, unlikePost);
+postRouter.post('/:id/like', socialLimiter, userAuth, likePost);
+postRouter.delete('/:id/like', socialLimiter, userAuth, unlikePost);
 
 module.exports = {
     postRouter

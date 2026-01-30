@@ -24,21 +24,7 @@ const postSchema = new Schema({
         type : [String],
         default : [],
     },
-    media : [{ //media field
-        type:{
-            type: String,
-            enum:['image','video'],
-            required : true
-        },
-        url:{ //stores the cloudinary-generated url for accessing the media
-            type: String,
-            required:true
-        },
-        publicId:{ //CLoudingry Public Id  for asset , required for deletion or updation of img
-            type: String,
-            required: true
-        }
-    }],
+    imageUrl : String,
     likesCount : {type : Number, default : 0},
     createdAt : {type: Date, default : Date.now},
     updatedAt : {type: Date, default : Date.now}

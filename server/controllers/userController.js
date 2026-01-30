@@ -6,6 +6,7 @@ const followUser = async (req, res) => {
         const { userId } = req.params; // User to follow
         const currentUserId = req.userId; // Current logged-in user
 
+        //if following yourself
         if (userId === currentUserId) {
             return res.status(400).json({ error: 'You cannot follow yourself' });
         }

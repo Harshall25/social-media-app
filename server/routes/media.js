@@ -1,11 +1,11 @@
 const express = require('express');
-const Router = express.Router();
-const mediaRouter = Router;
+const mediaRouter = express.Router();
+const { mediaLimiter } = require('../middlewares/rateLimiter');
 const multer = require('multer');
 const { userAuth } = require('../middlewares/userAuth');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const { uploadToR2, deleteFromR2 } = require('../config/r2');
 
-// Configure multer for memory storage (required for Cloudinary)
+// Configure multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
@@ -22,19 +22,24 @@ const upload = multer({
     }
 });
 
-// Upload single media file to Cloudinary
-mediaRouter.post('/upload', userAuth, upload.single('media'), async (req, res) => {
+// Upload single media file to R2
+mediaRouter.post('/upload', mediaLimiter, userAuth, upload.single('media'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Upload to Cloudinary
-        const mediaData = await uploadToCloudinary(req.file.buffer, 'social-media');
+        // Generate unique filename
+        const fileExtension = req.file.originalname.split('.').pop();
+        const fileName = `media/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+
+        // Upload to R2
+        const publicUrl = await uploadToR2(req.file.buffer, fileName, req.file.mimetype);
 
         res.status(200).json({
             message: 'Media uploaded successfully',
-            media: mediaData
+            url: publicUrl,
+            fileName: fileName
         });
     } catch (error) {
         res.status(500).json({
@@ -44,39 +49,12 @@ mediaRouter.post('/upload', userAuth, upload.single('media'), async (req, res) =
     }
 });
 
-// Upload multiple media files
-mediaRouter.post('/upload-multiple', userAuth, upload.array('media', 10), async (req, res) => {
+// Delete media from R2
+mediaRouter.delete('/delete/:fileName', userAuth, async (req, res) => {
     try {
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ error: 'No files uploaded' });
-        }
+        const { fileName } = req.params;
 
-        // Upload all files to Cloudinary
-        const uploadPromises = req.files.map(file =>
-            uploadToCloudinary(file.buffer, 'social-media')
-        );
-
-        const mediaResults = await Promise.all(uploadPromises);
-
-        res.status(200).json({
-            message: 'Media uploaded successfully',
-            media: mediaResults
-        });
-    } catch (error) {
-        res.status(500).json({
-            error: 'Upload failed',
-            message: error.message
-        });
-    }
-});
-
-// Delete media from Cloudinary
-mediaRouter.delete('/delete/:publicId', userAuth, async (req, res) => {
-    try {
-        const { publicId } = req.params;
-        const { resourceType } = req.query; // 'image' or 'video'
-
-        await deleteFromCloudinary(publicId, resourceType || 'image');
+        await deleteFromR2(fileName);
 
         res.status(200).json({
             message: 'Media deleted successfully'

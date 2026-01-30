@@ -1,6 +1,6 @@
 const express = require('express');
-const Router = express.Router();
-const userRouter = Router;
+const userRouter = express.Router();
+const { socialLimiter } = require('../middlewares/rateLimiter');
 const { userAuth } = require('../middlewares/userAuth');
 
 const {
@@ -11,8 +11,8 @@ const {
 } = require('../controllers/userController');
 
 // Follow/unfollow routes (protected)
-userRouter.post('/:userId/follow', userAuth, followUser);
-userRouter.delete('/:userId/follow', userAuth, unfollowUser);
+userRouter.post('/:userId/follow', socialLimiter, userAuth, followUser);
+userRouter.delete('/:userId/follow', socialLimiter, userAuth, unfollowUser);
 
 // Get followers/following lists (public)
 userRouter.get('/:userId/followers', getFollowers);

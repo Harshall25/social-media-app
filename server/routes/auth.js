@@ -1,6 +1,6 @@
 const express = require('express');
-const Router = express.Router();
-const authRouter = Router;
+const authRouter = express.Router();
+const { authLimiter } = require('../middlewares/rateLimiter');
 const { userModel } = require('../schema');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -19,7 +19,7 @@ const signinSchema = z.object({
     password: z.string().min(1, "Password is required")
 });
 
-authRouter.post('/signup', async function (req, res) {
+authRouter.post('/signup', authLimiter, async function (req, res) {
     try {
         // Validate input using Zod
         const validatedData = signupSchema.parse(req.body);
@@ -60,7 +60,7 @@ authRouter.post('/signup', async function (req, res) {
     }
 });
 
-authRouter.post('/signin', async function (req, res) {
+authRouter.post('/signin', authLimiter, async function (req, res) {
     try {
         // Validate input using Zod
         const validatedData = signinSchema.parse(req.body);
@@ -108,4 +108,4 @@ authRouter.post('/signin', async function (req, res) {
 
 module.exports = {
     authRouter
-}
+};
