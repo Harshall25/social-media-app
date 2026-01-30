@@ -2,18 +2,24 @@ const { postModel, commentModel, likeModel } = require('../schema');
 const { z } = require('zod');
 
 // Zod validation schemas
+const mediaSchema = z.object({
+    type: z.enum(['image', 'video'], "Type must be 'image' or 'video'"),
+    url: z.string().url("Invalid URL format"),
+    publicId: z.string().min(1, "Public ID is required")
+});
+
 const createPostSchema = z.object({
     title: z.string().min(1, "Title is required").optional(),
     content: z.string().min(1, "Content is required"),
     tags: z.array(z.string()).optional(),
-    imageUrl: z.string().url("Invalid URL format").optional()
+    media: z.array(mediaSchema).optional() // Array of media objects for Cloudinary uploads
 });
 
 const updatePostSchema = z.object({
     title: z.string().min(1).optional(),
     content: z.string().min(1).optional(),
     tags: z.array(z.string()).optional(),
-    imageUrl: z.string().url("Invalid URL format").optional()
+    media: z.array(mediaSchema).optional() // Updated media array
 });
 
 const commentSchema = z.object({
@@ -25,13 +31,13 @@ const createPost = async (req, res) => {
     try {
         // Validate input
         const validatedData = createPostSchema.parse(req.body);
-        const { title, content, tags, imageUrl } = validatedData;
+        const { title, content, tags, media } = validatedData;
 
         const post = await postModel.create({
             title: title,
             content: content,
             tags: tags || [],
-            imageUrl: imageUrl,
+            media: media || [], // Array of media objects from Cloudinary
             author: req.userId
         });
 
@@ -107,7 +113,7 @@ const updatePost = async (req, res) => {
 
         // Validate input
         const validatedData = updatePostSchema.parse(req.body);
-        const { title, content, tags, imageUrl } = validatedData;
+        const { title, content, tags, media } = validatedData;
 
         // Find the post
         const post = await postModel.findById(postId);
@@ -128,7 +134,7 @@ const updatePost = async (req, res) => {
         if (title !== undefined) post.title = title;
         if (content !== undefined) post.content = content;
         if (tags !== undefined) post.tags = tags;
-        if (imageUrl !== undefined) post.imageUrl = imageUrl;
+        if (media !== undefined) post.media = media; // Update media array
         post.updatedAt = Date.now();
 
         await post.save();

@@ -5,6 +5,8 @@ const userSchema = new Schema({
     name : String,
     email : {type : String , unique : true},
     password : String,
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'userModel' }], // Users following this user
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'userModel' }], // Users this user is following
     createdAt : {type: Date  , default : Date.now}
 });
 
@@ -22,10 +24,24 @@ const postSchema = new Schema({
         type : [String],
         default : [],
     },
-    imageUrl : String,
-    likesCount : {type : Number ,default : 0},
-    createdAt : {type: Date  , default : Date.now},
-    updatedAt : {type: Date  , default : Date.now}
+    media : [{ //media field
+        type:{
+            type: String,
+            enum:['image','video'],
+            required : true
+        },
+        url:{ //stores the cloudinary-generated url for accessing the media
+            type: String,
+            required:true
+        },
+        publicId:{ //CLoudingry Public Id  for asset , required for deletion or updation of img
+            type: String,
+            required: true
+        }
+    }],
+    likesCount : {type : Number, default : 0},
+    createdAt : {type: Date, default : Date.now},
+    updatedAt : {type: Date, default : Date.now}
 });
 
 const postModel = mongoose.model('postModel',postSchema);
@@ -33,7 +49,8 @@ const postModel = mongoose.model('postModel',postSchema);
 const commentSchema = new Schema({
     content : String,
     post : {
-        type : mongoose.S,
+        type : mongoose.Schema.Types.ObjectId,
+        ref:'postModel',
         required: true
     },
     user : {
@@ -45,7 +62,6 @@ const commentSchema = new Schema({
 })
 
 const commentModel = mongoose.model('commentModel', commentSchema);
-
 
 const likeSchema = new Schema ({
     post : {
