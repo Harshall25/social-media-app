@@ -5,8 +5,9 @@ export function NavBar(){
             {/* Logo  */}
             <Link to="/" >Home</Link>
             <Link to="/feed" >Feed</Link>
-            <Link to="/" >New Post</Link>
-            <Link to="/Login" >Login/Register</Link>
+            <Link to="/newpost" >New Post</Link>
+            <Link to="/login" >Login/Register</Link>
+            
         </nav>
     );
 }
