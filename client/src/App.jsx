@@ -1,30 +1,35 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import {NavBar} from './components/NavBar'
+import { Routes, Route } from 'react-router-dom';
+import { Navbar } from './components/layout/Navbar';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
-import { NewPost } from './pages/NewPost';
 import { Signup } from './pages/Signup';
-import { Feed } from './pages/Feed';
 import { Home } from './pages/Home';
+import { NewPost } from './pages/NewPost';
+import { Profile } from './pages/Profile';
+import { Settings } from './pages/Settings';
+import { Search } from './pages/Search';
+import './App.css';
+
 function App() {
   return (
-    <div>
-    
-        <NavBar />
+    <div className="app">
+      <Navbar />
+      <main className="main-content">
         <Routes>
-          <Route path='/landing' element={<Landing />} ></Route>
-          <Route path='/home' element={<Home />} ></Route>
-          <Route path='/feed' element={<Feed />} ></Route>
-          <Route path='/login' element={<Login />} ></Route>
-          <Route path='/newpost' element={<NewPost />} ></Route>
-
+          <Route path="/" element={<Landing />} />
+          <Route path="/landing" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/newpost" element={<NewPost />} />
+          <Route path="/profile/:userId?" element={<Profile />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/search" element={<Search />} />
         </Routes>
-      
+      </main>
     </div>
   );
 }
-export default App
+
+export default App;

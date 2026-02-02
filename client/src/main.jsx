@@ -3,16 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
-import { GLobalContextState } from './context/index.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
-  <GLobalContextState> 
+  <StrictMode>
     <BrowserRouter>
-      <StrictMode>
+      <AuthProvider>
         <App />
-      </StrictMode>
+      </AuthProvider>
     </BrowserRouter>
-  </GLobalContextState>
-
-
+  </StrictMode>
 )
