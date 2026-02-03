@@ -17,7 +17,7 @@ const Card = forwardRef(({
     <div
       ref={ref}
       className={cn(
-        'rounded-3xl p-6 shadow-2xl hover-lift',
+        'rounded-2xl p-5 shadow-xl hover-lift',
         variants[variant],
         className
       )}

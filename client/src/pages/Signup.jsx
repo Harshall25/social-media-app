@@ -1,101 +1,144 @@
-import { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import { User, Mail, Lock, UserPlus, ArrowLeft } from 'lucide-react';
-import { AuthLayout } from '../components/layout/AuthLayout';
-import { AuthForm } from '../components/ui/AuthForm';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { useAuth } from '../context/AuthContext';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
-export function Signup() {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { signup } = useContext(AuthContext);
-    const navigate = useNavigate();
+export default function Signup() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signup } = useAuth();
+  const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-        
-        try {
-            await signup(name, email, password);
-            alert('Account created successfully! Please login.');
-            navigate('/login');
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
 
-    return (
-        <AuthLayout>
-            <AuthForm
-                title="Join Linkup"
-                subtitle="Create your account and start connecting"
-                error={error}
-                onErrorDismiss={() => setError('')}
-            >
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <Input
-                        label="Full Name"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                        placeholder="John Doe"
-                        icon={User}
-                    />
+    try {
+      await signup(name, email, password);
+      setSuccess('Account created successfully! Redirecting to login...');
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to create account');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                    <Input
-                        label="Email Address"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        placeholder="you@example.com"
-                        icon={Mail}
-                    />
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-3xl shadow-blue-500/30 shadow-lg">
+            L
+          </div>
+          <span className="font-bold text-3xl text-slate-800">Linkup</span>
+        </div>
 
-                    <div>
-                        <Input
-                            label="Password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            minLength={6}
-                            placeholder="••••••••"
-                            icon={Lock}
-                        />
-                        <p className="text-sm text-gray-500 mt-2">Minimum 6 characters required</p>
-                    </div>
+        {/* Form Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+          <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">Create an account</h1>
+          <p className="text-slate-500 text-center mb-8">Join Linkup today</p>
 
-                    <Button
-                        type="submit"
-                        loading={loading}
-                        size="lg"
-                        className="w-full"
-                    >
-                        <UserPlus className="w-5 h-5" />
-                        Create Account
-                    </Button>
-                </form>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-6 text-sm">
+              {error}
+            </div>
+          )}
 
-                <div className="mt-8 text-center">
-                    <p className="text-gray-400 text-lg">
-                        Already have an account?{' '}
-                        <Link to="/login" className="text-orange-400 hover:text-orange-300 smooth-transition font-semibold flex items-center justify-center gap-2 mt-2">
-                            <ArrowLeft className="w-4 h-4" />
-                            Sign In
-                        </Link>
-                    </p>
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl mb-6 text-sm">
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User size={20} className="text-slate-400" />
                 </div>
-            </AuthForm>
-        </AuthLayout>
-    );
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  placeholder="Enter your name"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail size={20} className="text-slate-400" />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock size={20} className="text-slate-400" />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full pl-10 pr-12 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  placeholder="Enter your password (min 6 characters)"
+                  minLength={6}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-semibold transition-all duration-200 active:scale-95 shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Creating account...' : 'Sign Up'}
+              {!loading && <ArrowRight size={20} />}
+            </button>
+          </form>
+
+          <p className="mt-8 text-center text-slate-500">
+            Already have an account?{' '}
+            <Link to="/login" className="text-blue-500 hover:underline font-medium">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }

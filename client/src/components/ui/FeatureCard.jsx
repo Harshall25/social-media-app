@@ -8,15 +8,15 @@ export function FeatureCard({
 }) {
   return (
     <Card 
-      className="text-center scale-in" 
+      className="text-center scale-in h-full" 
       style={{animationDelay: `${delay}s`}}
     >
       <CardContent>
-        <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Icon className="w-8 h-8 text-white" />
+        <div className="w-14 h-14 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-5">
+          <Icon className="w-7 h-7 text-white" />
         </div>
-        <h3 className="text-2xl font-bold mb-4 text-white">{title}</h3>
-        <p className="text-gray-400 leading-relaxed">{description}</p>
+        <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
+        <p className="text-gray-400 leading-relaxed text-sm">{description}</p>
       </CardContent>
     </Card>
   );
