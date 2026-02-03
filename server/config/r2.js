@@ -17,14 +17,15 @@ const uploadToR2 = async (fileBuffer, fileName, contentType) => {
             Bucket: process.env.R2_BUCKET_NAME,
             Key: fileName,
             Body: fileBuffer,
-            ContentType: contentType,
-            ACL: 'public-read' // makes file publicly available
+            ContentType: contentType
         });
 
         await s3Client.send(command);
 
-        // return the public url
-        const publicUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
+        // return the public url through our server
+        const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const publicUrl = `${baseUrl}/api/v1/media/file/${fileName}`;
+        
         return publicUrl;
     } catch (error) {
         throw new Error(`R2 upload failed: ${error.message}`);

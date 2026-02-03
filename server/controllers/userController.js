@@ -139,9 +139,107 @@ const getFollowing = async (req, res) => {
     }
 };
 
+// Search users by name or email
+const searchUsers = async (req, res) => {
+    try {
+        const { q } = req.query;
+
+        if (!q || q.trim().length < 2) {
+            return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+        }
+
+        const users = await userModel.find({
+            $or: [
+                { name: { $regex: q, $options: 'i' } },
+                { email: { $regex: q, $options: 'i' } }
+            ]
+        })
+        .select('name email _id')
+        .limit(20);
+
+        res.status(200).json({
+            success: true,
+            count: users.length,
+            users: users
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+};
+
+// Get suggested users to follow (users not currently following, excluding self)
+const getSuggestedUsers = async (req, res) => {
+    try {
+        const currentUserId = req.userId; // From auth middleware
+
+        // Get current user's following list
+        const currentUser = await userModel.findById(currentUserId).select('following');
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Find users not in following list and not the current user
+        const suggestedUsers = await userModel.find({
+            _id: { 
+                $ne: currentUserId, // Exclude current user
+                $nin: currentUser.following // Exclude already following
+            }
+        })
+        .select('name email _id')
+        .limit(10); // Limit to 10 suggestions
+
+        res.status(200).json({
+            success: true,
+            count: suggestedUsers.length,
+            users: suggestedUsers
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+};
+
+// Get current user profile
+const getCurrentUser = async (req, res) => {
+    try {
+        const currentUserId = req.userId; // From auth middleware
+
+        const user = await userModel.findById(currentUserId)
+            .select('name email following followers');
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                following: user.following.length,
+                followers: user.followers.length
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     followUser,
     unfollowUser,
     getFollowers,
-    getFollowing
+    getFollowing,
+    searchUsers,
+    getSuggestedUsers,
+    getCurrentUser
 };

@@ -67,6 +67,42 @@ mediaRouter.delete('/delete/:fileName', userAuth, async (req, res) => {
     }
 });
 
+// Serve media files - handle all paths after /file/
+mediaRouter.get(/^\/file\/(.+)/, async (req, res) => {
+    try {
+        // Get the full path from the regex capture group
+        const fileName = req.params[0];
+        const { GetObjectCommand } = require('@aws-sdk/client-s3');
+        const { s3Client } = require('../config/r2');
+
+        const command = new GetObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: fileName,
+        });
+
+        const response = await s3Client.send(command);
+        
+        // Set appropriate headers
+        res.setHeader('Content-Type', response.ContentType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        
+        // Convert stream to buffer and send
+        const chunks = [];
+        for await (const chunk of response.Body) {
+            chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+        res.send(buffer);
+    } catch (error) {
+        console.error('Error serving file:', error);
+        res.status(404).json({
+            error: 'File not found',
+            message: error.message
+        });
+    }
+});
+
 module.exports = {
     mediaRouter
 };

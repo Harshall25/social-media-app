@@ -6,7 +6,7 @@ const createPostSchema = z.object({
     title: z.string().min(1, "Title is required").optional(),
     content: z.string().min(1, "Content is required"),
     tags: z.array(z.string()).optional(),
-    imageUrl: z.string().url("Invalid URL format").optional()
+    imageUrl: z.string().optional()
 });
 
 const updatePostSchema = z.object({
@@ -32,13 +32,16 @@ const createPost = async (req, res) => {
             title: title,
             content: content,
             tags: tags || [],
-            imageUrl: r2PublicUrl, // URL returned from R2 upload
+            imageUrl: imageUrl, // URL from request body
             author: req.userId
         });
 
+        // Populate the author field for the response
+        const populatedPost = await postModel.findById(post._id).populate('author', 'name email');
+
         res.status(201).json({
             message: "Post created successfully",
-            post: post
+            post: populatedPost
         });
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -65,7 +68,8 @@ const renderPost = async (req, res) => {
             limit = 20, 
             skip = 0, 
             sortBy = 'createdAt', 
-            sortOrder = 'desc' 
+            sortOrder = 'desc',
+            feedType
         } = req.query;
 
         // Build filter object
@@ -88,6 +92,23 @@ const renderPost = async (req, res) => {
                 { title: { $regex: search, $options: 'i' } },
                 { content: { $regex: search, $options: 'i' } }
             ];
+        }
+
+        // Filter for following feed (requires authentication)
+        if (feedType === 'following') {
+            if (!req.userId) {
+                return res.status(401).json({ error: 'Authentication required for following feed' });
+            }
+            
+            // Get current user's following list
+            const { userModel } = require('../schema');
+            const currentUser = await userModel.findById(req.userId).select('following');
+            if (!currentUser) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            // Filter posts to only show from followed users OR the current user
+            filter.author = { $in: [...currentUser.following, req.userId] };
         }
 
         // Build sort object
@@ -402,6 +423,49 @@ const unlikePost = async (req, res) => {
     }
 };
 
+// Get trending hashtags (public)
+const getTrendingHashtags = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+
+        // Aggregate hashtags from all posts
+        const trendingHashtags = await postModel.aggregate([
+            {
+                $unwind: "$tags"
+            },
+            {
+                $group: {
+                    _id: "$tags",
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { count: -1 }
+            },
+            {
+                $limit: limit
+            },
+            {
+                $project: {
+                    hashtag: "$_id",
+                    count: 1,
+                    _id: 0
+                }
+            }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            trending: trendingHashtags
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     createPost,
     renderPost,
@@ -411,7 +475,8 @@ module.exports = {
     addComment,
     getComments,
     likePost,
-    unlikePost
+    unlikePost,
+    getTrendingHashtags
 };
 
 
