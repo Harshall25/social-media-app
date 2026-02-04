@@ -1,7 +1,6 @@
 
 # LinkUp
 
-**Tagline:**
 > Connect, Share, and Inspire — A Modern Social Media Platform
 
 ---
